@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance - EMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>🏢 EMS</h2>
+      <p>Employee Management</p>
+    </div>
+    <!-- <ul class="sidebar-menu">
+      <li><a href="dashboard.html"><span>📊</span> Dashboard</a></li>
+      <li><a href="tasks.html"><span>✅</span> Tasks</a></li>
+      <li><a href="employees.html"><span>👥</span> Employees</a></li>
+      <li><a href="attendance.html" class="active"><span>🕐</span> Attendance</a></li>
+      <li><a href="reports.html"><span>📋</span> Reports</a></li>
+    </ul> -->
+    <ul class="sidebar-menu">
+  <li><a href="dashboard.html"><span>📊</span> Dashboard</a></li>
+  <li><a href="tasks.html"><span>✅</span> Tasks</a></li>
+  <li><a href="employees.html"><span>👥</span> Employees</a></li>
+  <li><a href="attendance.html"><span>🕐</span> Attendance</a></li>
+  <li><a href="reports.html"><span>📋</span> Reports</a></li>
+  <li><a href="departments.html"><span>🏢</span> Departments</a></li>
+  <li><a href="notifications.html"><span>🔔</span> Notifications</a></li>
+  <li><a href="profile.html"><span>👤</span> Profile</a></li>
+</ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <h2>Attendance</h2>
+      <div class="topbar-right">
+        <span class="user-info" id="user-name"></span>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- Check In/Out Buttons -->
+    <div class="card" style="margin-bottom:24px;">
+      <div style="display:flex;gap:16px;align-items:center;">
+        <div>
+          <div class="card-title">Today's Status</div>
+          <div class="card-value" id="today-status">Loading...</div>
+        </div>
+        <div style="margin-left:auto;display:flex;gap:12px;">
+          <button class="btn-success" onclick="checkIn()">✅ Check In</button>
+          <button class="btn-danger" onclick="checkOut()">🚪 Check Out</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- My Attendance Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h3>My Attendance History</h3>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Date</th>
+            <th>Check In</th>
+            <th>Check Out</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="attendance-table">
+          <tr><td colspan="5">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Today All Attendance (Manager/Admin) -->
+    <div class="table-container" id="all-attendance-section" style="display:none;">
+      <div class="table-header">
+        <h3>Today's All Attendance</h3>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Employee</th>
+            <th>Email</th>
+            <th>Check In</th>
+            <th>Check Out</th>
+          </tr>
+        </thead>
+        <tbody id="all-attendance-table">
+          <tr><td colspan="5">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
+  if (!token) window.location.href = '/index.html';
+  document.getElementById('user-name').textContent = `Role: ${role}`;
+
+  // Check In
+  async function checkIn() {
+    const res = await fetch('/api/attendance/checkin', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    alert(data.message);
+    loadMyAttendance();
+  }
+
+  // Check Out
+  async function checkOut() {
+    const res = await fetch('/api/attendance/checkout', {
+      method: 'PUT',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const data = await res.json();
+    alert(data.message);
+    loadMyAttendance();
+  }
+
+  // Load My Attendance
+  async function loadMyAttendance() {
+    const res = await fetch('/api/attendance/my-attendance', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const attendance = await res.json();
+
+    // Check today status
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecord = attendance.find(a => a.date.split('T')[0] === today);
+    if (todayRecord) {
+      if (todayRecord.check_out) {
+        document.getElementById('today-status').textContent = '✅ Checked Out';
+      } else {
+        document.getElementById('today-status').textContent = '🟢 Checked In';
+      }
+    } else {
+      document.getElementById('today-status').textContent = '❌ Not Checked In';
+    }
+
+    // Render table
+    const tbody = document.getElementById('attendance-table');
+    if (attendance.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5">No attendance records found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = attendance.map(a => `
+      <tr>
+        <td>${a.id}</td>
+        <td>${a.date.split('T')[0]}</td>
+        <td>${a.check_in ? new Date(a.check_in).toLocaleTimeString() : '-'}</td>
+        <td>${a.check_out ? new Date(a.check_out).toLocaleTimeString() : '-'}</td>
+        <td>
+          <span class="badge ${a.check_out ? 'badge-success' : 'badge-warning'}">
+            ${a.check_out ? 'Completed' : 'In Progress'}
+          </span>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Load All Attendance (Manager/Admin only)
+  async function loadAllAttendance() {
+    if (role === 'super_admin' || role === 'manager') {
+      document.getElementById('all-attendance-section').style.display = 'block';
+      const res = await fetch('/api/attendance/today', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const attendance = await res.json();
+      const tbody = document.getElementById('all-attendance-table');
+      if (attendance.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5">No attendance today</td></tr>';
+        return;
+      }
+      tbody.innerHTML = attendance.map(a => `
+        <tr>
+          <td>${a.id}</td>
+          <td>${a.name}</td>
+          <td>${a.email}</td>
+          <td>${a.check_in ? new Date(a.check_in).toLocaleTimeString() : '-'}</td>
+          <td>${a.check_out ? new Date(a.check_out).toLocaleTimeString() : '-'}</td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = '/index.html';
+  }
+
+  loadMyAttendance();
+  loadAllAttendance();
+</script>
+
+</body>
+</html>

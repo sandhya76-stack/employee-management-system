@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Employee Management System</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body class="auth-body">
+
+  <div class="auth-container">
+    <div class="auth-box">
+
+      <!-- Logo -->
+      <div class="auth-logo">
+        <h1>🏢 EMS</h1>
+        <p>Employee Management System</p>
+      </div>
+
+      <!-- Error Message -->
+      <div id="error-msg" class="error-msg" style="display:none;"></div>
+
+      <!-- Login Form -->
+      <form id="login-form">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" id="email" placeholder="Enter your email" required />
+        </div>
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" id="password" placeholder="Enter your password" required />
+        </div>
+        <button type="submit" class="btn-primary" id="login-btn">
+          Login
+        </button>
+      </form>
+
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('login-form').addEventListener('submit', async function(e) {
+      e.preventDefault();
+
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const errorMsg = document.getElementById('error-msg');
+      const loginBtn = document.getElementById('login-btn');
+
+      loginBtn.textContent = 'Logging in...';
+      loginBtn.disabled = true;
+
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+          localStorage.setItem('token', data.token);
+          const payload = JSON.parse(atob(data.token.split('.')[1]));
+          localStorage.setItem('role', payload.role);
+          localStorage.setItem('user_id', payload.id);
+
+          // Redirect to main app
+          window.location.href = '/pages/app.html';
+        } else {
+          errorMsg.textContent = data.message;
+          errorMsg.style.display = 'block';
+          loginBtn.textContent = 'Login';
+          loginBtn.disabled = false;
+        }
+      } catch (err) {
+        errorMsg.textContent = 'Something went wrong. Try again!';
+        errorMsg.style.display = 'block';
+        loginBtn.textContent = 'Login';
+        loginBtn.disabled = false;
+      }
+    });
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasks - EMS</title>
+  <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+
+<div class="layout">
+
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <h2>🏢 EMS</h2>
+      <p>Employee Management</p>
+    </div>
+    <!-- <ul class="sidebar-menu">
+      <li><a href="dashboard.html"><span>📊</span> Dashboard</a></li>
+      <li><a href="tasks.html" class="active"><span>✅</span> Tasks</a></li>
+      <li><a href="employees.html"><span>👥</span> Employees</a></li>
+      <li><a href="attendance.html"><span>🕐</span> Attendance</a></li>
+      <li><a href="reports.html"><span>📋</span> Reports</a></li>
+    </ul> -->
+    <ul class="sidebar-menu">
+  <li><a href="dashboard.html"><span>📊</span> Dashboard</a></li>
+  <li><a href="tasks.html"><span>✅</span> Tasks</a></li>
+  <li><a href="employees.html"><span>👥</span> Employees</a></li>
+  <li><a href="attendance.html"><span>🕐</span> Attendance</a></li>
+  <li><a href="reports.html"><span>📋</span> Reports</a></li>
+  <li><a href="departments.html"><span>🏢</span> Departments</a></li>
+  <li><a href="notifications.html"><span>🔔</span> Notifications</a></li>
+  <li><a href="profile.html"><span>👤</span> Profile</a></li>
+</ul>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+
+    <!-- Topbar -->
+    <div class="topbar">
+      <h2>Tasks</h2>
+      <div class="topbar-right">
+        <span class="user-info" id="user-name"></span>
+        <button class="btn-primary" style="width:auto;padding:8px 16px;" onclick="openModal()">+ New Task</button>
+        <button class="btn-logout" onclick="logout()">Logout</button>
+      </div>
+    </div>
+
+    <!-- Search Bar -->
+    <div class="search-bar">
+      <input type="text" id="search-title" placeholder="Search by title..." />
+      <select id="filter-status" style="padding:10px;border:2px solid #e2e8f0;border-radius:8px;outline:none;">
+        <option value="">All Status</option>
+        <option value="todo">Todo</option>
+        <option value="in_progress">In Progress</option>
+        <option value="completed">Completed</option>
+      </select>
+      <select id="filter-priority" style="padding:10px;border:2px solid #e2e8f0;border-radius:8px;outline:none;">
+        <option value="">All Priority</option>
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+      <button class="btn-primary" style="width:auto;padding:10px 20px;" onclick="searchTasks()">Search</button>
+    </div>
+
+    <!-- Tasks Table -->
+    <div class="table-container">
+      <div class="table-header">
+        <h3>All Tasks</h3>
+      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Title</th>
+            <th>Assigned To</th>
+            <th>Priority</th>
+            <th>Status</th>
+            <th>Due Date</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="tasks-table">
+          <tr><td colspan="7">Loading...</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </div>
+</div>
+
+<!-- Create Task Modal -->
+<div class="modal" id="task-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Create New Task</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Title</label>
+      <input type="text" id="task-title" placeholder="Task title" />
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea id="task-desc" rows="3" placeholder="Task description"></textarea>
+    </div>
+    <div class="form-group">
+      <label>Assign To (User ID)</label>
+      <input type="number" id="task-assigned" placeholder="User ID" />
+    </div>
+    <div class="form-group">
+      <label>Priority</label>
+      <select id="task-priority">
+        <option value="low">Low</option>
+        <option value="medium">Medium</option>
+        <option value="high">High</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Due Date</label>
+      <input type="date" id="task-due" />
+    </div>
+    <button class="btn-primary" onclick="createTask()">Create Task</button>
+  </div>
+</div>
+
+<!-- Update Status Modal -->
+<div class="modal" id="status-modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3>Update Task Status</h3>
+      <button class="modal-close" onclick="closeStatusModal()">×</button>
+    </div>
+    <div class="form-group">
+      <label>Status</label>
+      <select id="new-status">
+        <option value="todo">Todo</option>
+        <option value="in_progress">In Progress</option>
+        <option value="completed">Completed</option>
+      </select>
+    </div>
+    <input type="hidden" id="status-task-id" />
+    <button class="btn-primary" onclick="updateStatus()">Update Status</button>
+  </div>
+</div>
+
+<script>
+  const token = localStorage.getItem('token');
+  const role = localStorage.getItem('role');
+  if (!token) window.location.href = '/index.html';
+  document.getElementById('user-name').textContent = `Role: ${role}`;
+
+  // Load Tasks
+  async function loadTasks() {
+    const res = await fetch('/api/tasks', {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const tasks = await res.json();
+    renderTasks(tasks);
+  }
+
+  // Render Tasks
+  function renderTasks(tasks) {
+    const tbody = document.getElementById('tasks-table');
+    if (tasks.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7">No tasks found</td></tr>';
+      return;
+    }
+    tbody.innerHTML = tasks.map(t => `
+      <tr>
+        <td>${t.id}</td>
+        <td>${t.title}</td>
+        <td>${t.assigned_to_name}</td>
+        <td><span class="badge ${getPriorityBadge(t.priority)}">${t.priority}</span></td>
+        <td><span class="badge ${getStatusBadge(t.status)}">${t.status}</span></td>
+        <td>${t.due_date ? t.due_date.split('T')[0] : '-'}</td>
+        <td>
+          <button class="btn-success" onclick="openStatusModal(${t.id})">Update</button>
+          <button class="btn-danger" onclick="deleteTask(${t.id})">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+  }
+
+  // Search Tasks
+  async function searchTasks() {
+    const title = document.getElementById('search-title').value;
+    const status = document.getElementById('filter-status').value;
+    const priority = document.getElementById('filter-priority').value;
+
+    let url = '/api/search/tasks?';
+    if (title) url += `title=${title}&`;
+    if (status) url += `status=${status}&`;
+    if (priority) url += `priority=${priority}&`;
+
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    const tasks = await res.json();
+    renderTasks(tasks);
+  }
+
+  // Create Task
+  async function createTask() {
+    const title = document.getElementById('task-title').value;
+    const description = document.getElementById('task-desc').value;
+    const assigned_to = document.getElementById('task-assigned').value;
+    const priority = document.getElementById('task-priority').value;
+    const due_date = document.getElementById('task-due').value;
+
+    const res = await fetch('/api/tasks', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ title, description, assigned_to, priority, due_date })
+    });
+
+    if (res.ok) {
+      closeModal();
+      loadTasks();
+      alert('Task created successfully!');
+    } else {
+      alert('Error creating task!');
+    }
+  }
+
+  // Update Status
+  async function updateStatus() {
+    const id = document.getElementById('status-task-id').value;
+    const status = document.getElementById('new-status').value;
+
+    const res = await fetch(`/api/tasks/${id}/status`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({ status })
+    });
+
+    if (res.ok) {
+      closeStatusModal();
+      loadTasks();
+      alert('Status updated successfully!');
+    }
+  }
+
+  // Delete Task
+  async function deleteTask(id) {
+    if (!confirm('Are you sure you want to delete this task?')) return;
+
+    const res = await fetch(`/api/tasks/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+
+    if (res.ok) {
+      loadTasks();
+      alert('Task deleted successfully!');
+    }
+  }
+
+  // Modal functions
+  function openModal() { document.getElementById('task-modal').classList.add('active'); }
+  function closeModal() { document.getElementById('task-modal').classList.remove('active'); }
+  function openStatusModal(id) {
+    document.getElementById('status-task-id').value = id;
+    document.getElementById('status-modal').classList.add('active');
+  }
+  function closeStatusModal() { document.getElementById('status-modal').classList.remove('active'); }
+
+  // Badge helpers
+  function getPriorityBadge(p) {
+    if (p === 'high') return 'badge-danger';
+    if (p === 'medium') return 'badge-warning';
+    return 'badge-info';
+  }
+  function getStatusBadge(s) {
+    if (s === 'completed') return 'badge-success';
+    if (s === 'in_progress') return 'badge-warning';
+    return 'badge-info';
+  }
+
+  function logout() {
+    localStorage.clear();
+    window.location.href = '/index.html';
+  }
+
+  loadTasks();
+</script>
+
+</body>
+</html>
